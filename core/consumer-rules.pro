@@ -1,0 +1,1 @@
+-keep class cpf.fragment.layout.**{*;}

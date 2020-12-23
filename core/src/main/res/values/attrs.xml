@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 自动加载，默认不启用自动加载，建议只在activity使用 -->
+    <attr name="autoLoad" format="boolean" />
+    <!-- 自动加载延迟，单位毫秒，默认不自动加载 -->
+    <attr name="delayDuration" format="integer" />
+
+    <declare-styleable name="FragmentLayout">
+        <attr name="android:name" />
+        <attr name="android:tag" />
+        <attr name="autoLoad" />
+        <attr name="delayDuration" />
+    </declare-styleable>
+</resources>
