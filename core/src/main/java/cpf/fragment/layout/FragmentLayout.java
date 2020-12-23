@@ -23,7 +23,7 @@ import androidx.lifecycle.LifecycleOwner;
  * email       : cpf4263@gmail.com
  * description : fragment容器
  */
-public class FragmentLayout extends FrameLayout implements Runnable, LifecycleEventObserver {
+public class FragmentLayout extends FrameLayout implements LifecycleEventObserver {
 
     private boolean isLoad;
     // 自动加载，默认不启用自动加载，建议只在activity使用
@@ -37,8 +37,8 @@ public class FragmentLayout extends FrameLayout implements Runnable, LifecycleEv
     private Context context;
     private AttributeSet attrs;
     private Handler handler = new Handler(Looper.getMainLooper());
-    private FragmentManager fragmentManager;
     private FragmentLoadListener listener;
+    private DelayTask delayTask;
 
     public FragmentLayout(@NonNull Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
@@ -60,18 +60,17 @@ public class FragmentLayout extends FrameLayout implements Runnable, LifecycleEv
             tag = String.valueOf(getId());
         }
         if (isAutoLoad && context instanceof FragmentActivity) {
-            fragmentManager = ((FragmentActivity) context).getSupportFragmentManager();
+            FragmentManager fragmentManager = ((FragmentActivity) context).getSupportFragmentManager();
             if (delayDuration > 0) {
-                lazyLoadFragment((LifecycleOwner) context);
+                lazyLoadFragment((LifecycleOwner) context, fragmentManager);
             } else {
-                handler.post(this);
+                handler.post(new DelayTask(this, fragmentManager));
             }
         }
     }
 
     @NonNull
-    private synchronized Fragment loadFragment() {
-        handler.removeCallbacks(this);
+    synchronized Fragment loadFragmentImpl(FragmentManager fragmentManager) {
         Fragment fragment = fragmentManager.findFragmentByTag(tag);
         if (fragment != null) {
             isLoad = true;
@@ -83,7 +82,6 @@ public class FragmentLayout extends FrameLayout implements Runnable, LifecycleEv
                 .setReorderingAllowed(true)
                 .add(getId(), fragment, tag)
                 .commitNowAllowingStateLoss();
-        fragmentManager = null;
         if (listener != null) {
             listener.onFragmentLoad(this, fragment);
         }
@@ -91,7 +89,8 @@ public class FragmentLayout extends FrameLayout implements Runnable, LifecycleEv
         return fragment;
     }
 
-    private void lazyLoadFragment(LifecycleOwner owner) {
+    private void lazyLoadFragment(LifecycleOwner owner, FragmentManager fragmentManager) {
+        delayTask = new DelayTask(this, fragmentManager);
         owner.getLifecycle().removeObserver(this);
         owner.getLifecycle().addObserver(this);
     }
@@ -100,8 +99,7 @@ public class FragmentLayout extends FrameLayout implements Runnable, LifecycleEv
     @NonNull
     @MainThread
     public <T extends Fragment> T loadFragment(FragmentManager fragmentManager) {
-        this.fragmentManager = fragmentManager;
-        Fragment mFragment = loadFragment();
+        Fragment mFragment = loadFragmentImpl(fragmentManager);
         return (T) mFragment;
     }
 
@@ -113,9 +111,8 @@ public class FragmentLayout extends FrameLayout implements Runnable, LifecycleEv
      */
     @MainThread
     public void loadFragmentDelayed(FragmentActivity activity, int delayDuration) {
-        this.fragmentManager = activity.getSupportFragmentManager();
         this.delayDuration = delayDuration;
-        lazyLoadFragment(activity);
+        lazyLoadFragment(activity, activity.getSupportFragmentManager());
     }
 
     /**
@@ -126,28 +123,22 @@ public class FragmentLayout extends FrameLayout implements Runnable, LifecycleEv
      */
     @MainThread
     public void loadFragmentDelayed(Fragment fragment, int delayDuration) {
-        this.fragmentManager = fragment.getChildFragmentManager();
         this.delayDuration = delayDuration;
-        lazyLoadFragment(fragment);
+        lazyLoadFragment(fragment, fragment.getChildFragmentManager());
     }
 
     @Override
     public void onStateChanged(@NonNull LifecycleOwner source, @NonNull Lifecycle.Event event) {
         switch (event) {
             case ON_CREATE:
-                handler.postDelayed(this, delayDuration);
+                handler.postDelayed(delayTask, delayDuration);
                 break;
             case ON_DESTROY:
-                handler.removeCallbacks(this);
-                fragmentManager = null;
+                handler.removeCallbacks(delayTask);
+                delayTask = null;
                 source.getLifecycle().removeObserver(this);
                 break;
         }
-    }
-
-    @Override
-    public void run() {
-        loadFragment();
     }
 
     public FragmentLoadListener getListener() {

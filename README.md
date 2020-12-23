@@ -14,7 +14,7 @@ allprojects {
 ```
 Add the dependency
 ``` groovy
-	implementation 'com.github.cyynf:FragmentLayout:1.0.0'
+	implementation 'com.github.cyynf:FragmentLayout:1.0.2'
 ```
 Use FragmentLayout
 ``` xml
