@@ -35,6 +35,7 @@ public class FragmentLayout extends FrameLayout implements Runnable, LifecycleEv
     // fragment tag
     private String tag;
     private Context context;
+    private AttributeSet attrs;
     private Handler handler = new Handler(Looper.getMainLooper());
     private FragmentManager fragmentManager;
     private FragmentLoadListener listener;
@@ -42,6 +43,7 @@ public class FragmentLayout extends FrameLayout implements Runnable, LifecycleEv
     public FragmentLayout(@NonNull Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         this.context = context;
+        this.attrs = attrs;
         TypedArray typedArray = context.obtainStyledAttributes(attrs, R.styleable.FragmentLayout);
         isAutoLoad = typedArray.getBoolean(R.styleable.FragmentLayout_autoLoad, false);
         delayDuration = typedArray.getInt(R.styleable.FragmentLayout_delayDuration, 0);
@@ -76,7 +78,9 @@ public class FragmentLayout extends FrameLayout implements Runnable, LifecycleEv
             return fragment;
         }
         fragment = fragmentManager.getFragmentFactory().instantiate(context.getClassLoader(), name);
+        fragment.onInflate(context, attrs, null);
         fragmentManager.beginTransaction()
+                .setReorderingAllowed(true)
                 .add(getId(), fragment, tag)
                 .commitNowAllowingStateLoss();
         fragmentManager = null;
